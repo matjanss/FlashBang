@@ -13,7 +13,8 @@ Typical uses: popping balloons, water drops, breaking glass and other short even
   - an external 3.3 V logic input, active low or active high (ie. an IR or generic light sensor, works wonderfully for muzzle flash)
   - the camera's PC sync contact
 
-  The first input to fire wins. A holdoff time after each shot blocks re-triggering.
+  Selectable trigger (single/multi. On multi, the first input to fire wins.) A holdoff time after each shot blocks re-triggering.
+  
 - **Manual fire button.** It always works, even with a menu open, so you can test a setup.
 - **Four optocoupler outputs**, one per flash.
 - **Three flash modes:**
