@@ -1,0 +1,17 @@
+# PlatformIO
+.pio
+.cache
+.dummy
+compile_commands.json
+
+# VS Code (keep extensions.json)
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS / editor junk
+.DS_Store
+*~
+*.swp
