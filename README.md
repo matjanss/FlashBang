@@ -80,6 +80,7 @@ Without a pcb for the front panel, wiring turns into spaghetti fast. I soldered 
 | KY-037 | I wired the wiper to an additional pin so that you can see sensitivity in percent on the display. Wiper to pin 34  |
 | EXT trigger | I've wired it so that it provides 3.3v on the ring for external sensors (ring: 3V3, tip: trigger, sleeve: GND) |
 | PC Sync | Use a 1k resistor in series from GPIO to tip (trigger) to prevent excess current, use 10k pullup resistor from 3V3 on LilyGo to tip for better pullup. You can probably get away without it but on long cable runs this works better. |
+| CHG | I soldered the + from the charge port directly on the board between the micro-usb connector and the protection diode. Charging turns the whole thing on - this is by default (design?) |
 
 ### Case
 
