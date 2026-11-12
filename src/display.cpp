@@ -155,6 +155,55 @@ void showOtaScreen() {
   oled.display();
 }
 
+// ================= display: firmware update =================
+// Shared by both update methods: ArduinoOTA (OTA mode) and the upload on the config page.
+
+static int updLastPct = -1;
+
+void showUpdateStart() {
+  updLastPct = -1;
+  oled.clearDisplay();
+  oled.setTextSize(1);
+  oled.setTextColor(SH110X_WHITE);
+  oled.setCursor(0, 0);  oled.print("Receiving firmware");
+  oled.setCursor(0, 56); oled.print("Do not power off");
+  oled.display();
+}
+
+// Progress bar. A redraw takes ~25 ms, so it only redraws in 5 % steps, not on every packet.
+void showUpdateProgress(int pct) {
+  if (pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+  if (pct == updLastPct || (pct % 5 != 0 && pct != 100)) return;
+  updLastPct = pct;
+  oled.fillRect(0, 16, 128, 32, SH110X_BLACK);
+  oled.drawRect(0, 20, 128, 12, SH110X_WHITE);
+  oled.fillRect(2, 22, (124 * pct) / 100, 8, SH110X_WHITE);
+  oled.setTextColor(SH110X_WHITE);
+  oled.setCursor(0, 38); oled.print(pct); oled.print(" %");
+  oled.display();
+}
+
+void showUpdateDone() {
+  oled.clearDisplay();
+  oled.setTextSize(1);
+  oled.setTextColor(SH110X_WHITE);
+  oled.setCursor(0, 24); oled.print("Done. Restarting...");
+  oled.display();
+}
+
+// `why` is cut to one 21-character line.
+void showUpdateFailed(const char* why) {
+  char b[22];
+  snprintf(b, sizeof b, "%s", why);
+  oled.clearDisplay();
+  oled.setTextSize(1);
+  oled.setTextColor(SH110X_WHITE);
+  oled.setCursor(0, 16); oled.print("Update failed");
+  oled.setCursor(0, 32); oled.print(b);
+  oled.display();
+}
+
 // Switch the panel off (sleep mode, almost no current). The RAM keeps its content.
 void displaySleep() {
   oled.oled_command(SH110X_DISPLAYOFF);

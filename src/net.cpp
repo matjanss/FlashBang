@@ -29,35 +29,15 @@ void startOta() {
   WiFi.softAP(AP_SSID, nullptr, 1, 0, 2);        // open network, max 2 clients
 
   ArduinoOTA.setHostname(OTA_HOST);
-  ArduinoOTA.onStart([]() {
-    oled.clearDisplay();
-    oled.setTextSize(1);
-    oled.setTextColor(SH110X_WHITE);
-    oled.setCursor(0, 0);  oled.print("Receiving firmware");
-    oled.setCursor(0, 56); oled.print("Do not power off");
-    oled.display();
-  });
+  ArduinoOTA.onStart([]() { showUpdateStart(); });
   ArduinoOTA.onProgress([](unsigned int done, unsigned int total) {
-    static int lastPct = -1;
-    int pct = total ? (int)((uint64_t)done * 100 / total) : 0;
-    if (pct == lastPct || (pct % 5 != 0 && pct != 100)) return;   // a redraw takes ~25 ms: not on every packet
-    lastPct = pct;
-    oled.fillRect(0, 16, 128, 32, SH110X_BLACK);
-    oled.drawRect(0, 20, 128, 12, SH110X_WHITE);
-    oled.fillRect(2, 22, (124 * pct) / 100, 8, SH110X_WHITE);
-    oled.setCursor(0, 38); oled.print(pct); oled.print(" %");
-    oled.display();
+    showUpdateProgress(total ? (int)((uint64_t)done * 100 / total) : 0);
   });
-  ArduinoOTA.onEnd([]() {
-    oled.clearDisplay();
-    oled.setCursor(0, 24); oled.print("Done. Restarting...");
-    oled.display();
-  });
+  ArduinoOTA.onEnd([]() { showUpdateDone(); });
   ArduinoOTA.onError([](ota_error_t e) {
-    oled.clearDisplay();
-    oled.setCursor(0, 16); oled.print("Update failed");
-    oled.setCursor(0, 32); oled.print("error "); oled.print((int)e);
-    oled.display();
+    char b[16];
+    snprintf(b, sizeof b, "error %d", (int)e);
+    showUpdateFailed(b);
     delay(2500);
     showOtaScreen();
   });

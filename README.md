@@ -31,7 +31,7 @@ Typical uses: popping balloons, water drops, breaking glass and other short even
   - the source of the last trigger and a shot counter
 - **Quick adjust:** turning the encoder on the status screen shifts the whole timing. Slow turns give fine steps; fast turns give bigger steps.
 - **WiFi config page:** the device opens its own access point with a captive portal. The page holds every setting and up to 8 named presets.
-- **OTA firmware updates** over the same access point.
+- **Firmware updates over WiFi**, two ways: upload a `.bin` file on the config page from any phone or computer, or push it from PlatformIO in OTA mode.
 - **Battery monitoring** with a runtime estimate for the 18650 cell.
 - **Power saving:**
   - the main loop sleeps until an interrupt or a deadline
@@ -101,7 +101,16 @@ pio run -e ttgo-t-energy -t upload
 pio device monitor
 ```
 
-### Over the air
+### From the config page (no PlatformIO needed)
+
+1. Build the firmware, or get a `firmware.bin` from someone who did. After a build, it's in `.pio/build/ttgo-t-energy/firmware.bin`. Use `firmware.bin`, **not** `firmware.factory.bin`.
+2. On the device, choose **WiFi setup** in the menu, join the **FlashBang** network and open the config page.
+3. Under **Firmware update**, choose the file and press **Upload & install**.
+4. The page and the display both show the progress. The device restarts with the new firmware when it's done.
+
+Settings and presets are kept. A wrong or damaged file is rejected, and the old firmware stays in place.
+
+### Over the air from PlatformIO
 
 1. On the device, open the menu and choose **OTA Update**.
 2. Join the open WiFi network **FlashBang** from your computer.
@@ -162,7 +171,7 @@ src/
   schedule.*     turns the setup into a timed list of flash events and fires it
   display.*      OLED screens and display power
   menu.*         on-device menu and quick adjust
-  webui.*        WiFi config page and its form handlers
+  webui.*        WiFi config page, its form handlers and the firmware upload
   net.*          access point, captive portal, OTA
   storage.*      loading and saving settings and presets (NVS), value clamping
   sensors.*      sensitivity pot and battery

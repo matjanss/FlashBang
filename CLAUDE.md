@@ -26,6 +26,11 @@ FlashBang: ESP32 firmware (Arduino framework, PlatformIO) for a 4-channel flash 
 - **Display:** a full redraw takes about 25 ms over I²C. Only redraw when something changed, and never in the trigger path.
 - **Menu:** `menu.cpp` is table-driven (`Item` / `PageDef`). An item's `modes` bitmask and `minc` decide whether it is shown.
 - **Web UI:** `webui.cpp` builds the page as a `String` from `F()` literals. Forms POST to `/save`, `/preset_*` and `/reset`.
+- **Firmware updates, two paths:**
+  - ArduinoOTA in OTA mode (`net.cpp`).
+  - A multipart upload to `/update` on the config page (`webui.cpp`, using the `Update` library). It needs the two OTA app slots of `min_spiffs.csv`.
+
+  Both draw their progress with `showUpdate*()` in `display.cpp`.
 
 ## Conventions
 

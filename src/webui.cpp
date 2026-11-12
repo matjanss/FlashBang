@@ -1,5 +1,6 @@
 // FlashBang V3.0 - WiFi config page and its form handlers
 #include "app.h"
+#include <Update.h>
 
 // ================= web page =================
 
@@ -54,6 +55,10 @@ button{height:48px;border-radius:12px;border:1px solid var(--line);font:inherit;
 .sr{display:grid;grid-template-columns:1fr 5.5rem 44px;gap:6px;margin-top:6px;align-items:center}
 .sr input,.sr select{height:44px;padding:0 8px;min-width:0}
 .sr .sm{height:44px;padding:0}
+input[type=file]{height:auto;padding:9px 12px}
+.prog{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:4px 0 10px}
+.prog div{height:100%;width:0;background:var(--acc);transition:width .2s}
+.fwm{margin:0 0 10px}
 </style></head><body><main>
 )HTML";
 
@@ -90,6 +95,22 @@ const char PAGE_SCRIPT[] PROGMEM = R"JS(<script>
    f['md'+act[i]].value=(base+i*x).toFixed(1);
    f['iv'+act[i]].value=(x*act.length).toFixed(1);}
  };
+ // Firmware upload: sent with XHR so the page can show the upload progress.
+ var w=$('fw'),bar=$('fwb'),btn=$('fwbtn');
+ function msg(t,c){var e=$('fwm');e.textContent=t;e.className='fwm '+(c||'hint');e.hidden=false;}
+ w.addEventListener('submit',function(ev){ev.preventDefault();
+  var fi=w.firmware.files[0];if(!fi)return;
+  if(/factory/i.test(fi.name)){msg('That is the factory image. Choose firmware.bin instead.','bad');return;}
+  if(!confirm('Install '+fi.name+'? FlashBang restarts when it is done.'))return;
+  var x=new XMLHttpRequest(),d=new FormData();d.append('firmware',fi,fi.name);
+  $('fwp').hidden=false;bar.style.width='0';btn.disabled=true;msg('Uploading...');
+  x.upload.onprogress=function(e){if(!e.lengthComputable)return;var p=Math.round(e.loaded*100/e.total);
+   bar.style.width=p+'%';msg(p<100?'Uploading... '+p+' %':'Installing...');};
+  x.onload=function(){if(x.status===200){bar.style.width='100%';
+    msg('Installed. FlashBang is restarting in normal mode, so this WiFi network goes away.','ok');}
+   else{msg('Update failed: '+x.responseText,'bad');btn.disabled=false;}};
+  x.onerror=function(){msg('The connection was lost during the upload. Nothing was installed.','bad');btn.disabled=false;};
+  x.open('POST','/update');x.send(d);});
 })();
 </script>
 )JS";
@@ -438,7 +459,20 @@ String buildPage(const String& saved, const String& err) {
   s += F("<div class=actions><button class=primary type=submit>Save</button>"
          "<button class=ghost type=submit formaction=/reset formnovalidate "
          "onclick=\"return confirm('Restore default values?')\">Defaults</button></div>");
-  s += F("</form><p class=foot>Hold the button to leave config mode. Changes take effect after that.</p></main>");
+  s += F("</form>");
+
+  // --- Firmware update (its own form: a file upload, not part of the settings) ---
+  s += F("<section class=card><h2>Firmware update</h2>"
+         "<form id=fw method=post action=/update enctype=multipart/form-data>"
+         "<label class=f><span class=l>Firmware file</span><span class=in>"
+         "<input type=file name=firmware accept=.bin required></span><small>Installed: ");
+  s += FW_NAME;
+  s += F(". Choose <b>firmware.bin</b> from <code>.pio/build/ttgo-t-energy/</code> (not firmware.factory.bin). "
+         "Settings and presets are kept. FlashBang restarts when the update is installed.</small></label>"
+         "<div class=prog id=fwp hidden><div id=fwb></div></div><p id=fwm hidden></p>"
+         "<div class=actions><button class=primary id=fwbtn>Upload &amp; install</button></div></form></section>");
+
+  s += F("<p class=foot>Hold the button to leave config mode. Changes take effect after that.</p></main>");
   s += FPSTR(PAGE_SCRIPT);
   s += F("</body></html>");
   return s;
@@ -590,6 +624,59 @@ void handleReset() {
   redirectTo("/?saved=1");
 }
 
+// ================= firmware upload =================
+// The upload handler is called for each chunk of the file and writes it straight into the free
+// OTA partition. When the request is complete, handleUpdateDone() answers and restarts.
+// Update checks the image (magic byte, checksum), so a wrong file is rejected, and the running
+// firmware stays in place until the new one has been written and checked completely.
+
+static String updErr;                            // empty = no error so far
+
+void handleUpdateUpload() {
+  HTTPUpload& up = server.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    updErr = "";
+    showUpdateStart();
+    if (up.filename.indexOf("factory") >= 0) updErr = "use firmware.bin, not the factory image";
+    else if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) updErr = Update.errorString();
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    if (updErr.length()) return;                 // already failed: let the rest of the upload pass
+    if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+      updErr = Update.errorString();
+      Update.abort();
+      return;
+    }
+    // The request length includes a few hundred bytes of form overhead, so this is close but
+    // never quite 100 % until the end.
+    int total = server.clientContentLength();
+    if (total > 0) showUpdateProgress((int)((uint64_t)up.totalSize * 100 / total));
+  } else if (up.status == UPLOAD_FILE_END) {
+    if (updErr.length()) return;
+    showUpdateProgress(100);
+    if (!Update.end(true)) updErr = Update.errorString();
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    Update.abort();
+    updErr = "upload aborted";
+  }
+}
+
+void handleUpdateDone() {
+  server.sendHeader("Connection", "close");
+  if (updErr.length() || !Update.isFinished()) {
+    if (!updErr.length()) updErr = "no firmware received";
+    server.send(500, "text/plain", updErr);
+    showUpdateFailed(updErr.c_str());
+    delay(2500);
+    showConfig();                                // still in config mode, nothing changed
+    return;
+  }
+  server.send(200, "text/plain", "OK");
+  showUpdateDone();
+  saveAllIfDirty();
+  delay(1000);                                   // let the answer reach the browser
+  ESP.restart();
+}
+
 
 // Registers the web pages. Called once from setup().
 void webSetupRoutes() {
@@ -599,5 +686,6 @@ void webSetupRoutes() {
   server.on("/preset_load", HTTP_POST, handlePresetLoad);
   server.on("/preset_delete", HTTP_POST, handlePresetDelete);
   server.on("/reset", HTTP_POST, handleReset);
+  server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
   server.onNotFound(redirectToPortal);
 }
