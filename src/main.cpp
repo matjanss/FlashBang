@@ -1,4 +1,6 @@
-// FlashBang V3.0 - sound/light/camera-triggered 4-channel flash controller
+// FlashBang V3.0 - sound/light/camera-triggered 4-channel flash controller\
+// https://github.com/matjanss/FlashBang
+// 
 // Board: LilyGO TTGO T-Energy (ESP32-WROVER), 18650, 128x64 SH1106 OLED, rotary encoder
 //
 // Sound module DO, an external trigger input and/or the camera's PC sync contact -> interrupt.
