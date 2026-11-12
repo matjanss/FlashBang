@@ -2,13 +2,15 @@
 
 FlashBang is a four-channel flash trigger for high-speed photography, built on an ESP32. A sound, an external trigger signal or the camera's sync contact starts a sequence of flashes. You can set the timing per channel down to 0.1 ms, from a rotary encoder menu or from a web page on your phone.
 
-Typical uses: popping balloons, water drops, breaking glass and other short events in a dark room with the shutter open (bulb), or multi-flash stroboscopic shots.
+Typical uses: popping balloons, water drops, breaking glass and other short events in a dark room with the shutter open (bulb), or multi-flash stroboscopic shots. I use it for taking photo's of black powder // historic weapons shooting.
+
+![Picture](pictures/flashbang-1.jpg)
 
 ## Features
 
 - **Three trigger inputs, in any combination:**
-  - a sound module (with a sensitivity trimpot)
-  - an external 3.3 V logic input, active low or active high
+  - a sound module (with a sensitivity trimpot) (built-int)
+  - an external 3.3 V logic input, active low or active high (ie. an IR or generic light sensor, works wonderfully for muzzle flash)
   - the camera's PC sync contact
 
   The first input to fire wins. A holdoff time after each shot blocks re-triggering.
@@ -42,18 +44,18 @@ Typical uses: popping balloons, water drops, breaking glass and other short even
 | LilyGO TTGO T-Energy | ESP32-WROVER with PSRAM and an 18650 holder. Built as `esp-wrover-kit`. |
 | SH1106 128×64 OLED, I²C | Address 0x3C (labelled 0x78 on the back of most boards) |
 | Rotary encoder with push button | |
-| Sound module with digital output and trimpot | e.g. an LM393-based module; DO goes low on sound |
+| Sound module with digital output and trimpot | e.g. an LM393-based module; DO goes low on sound. The generic KY-037 or KY-038 **without automatic gain** work fine. |
 | 4 × optocoupler | One per flash. The ESP32 drives the LED side; the transistor side shorts the flash's trigger contacts. |
 | Push button | Manual fire |
-| PC sync socket, 10 kΩ + 1 kΩ | Optional |
-| 3.5 mm jack | Optional, for an external trigger |
+| PC sync socket | Optional. See wiring notes below |
+| 3.5 mm jack | Optional, for an external trigger, like the KY-026 IR sensor. See wiring notes below. |
 
 ### Pinout
 
 | GPIO | Function |
 |---|---|
 | 23 | Sound module DO |
-| 34 | Sound module trimpot wiper (reads the sensitivity, ADC) |
+| 34 | Sound module trimpot wiper (reads the sensitivity, ADC) See wiring notes below. |
 | 35 | Battery divider (on the board) |
 | 13 | External trigger input, **3.3 V logic only** |
 | 14 | PC sync contact: 10 kΩ pull-up to 3V3, 1 kΩ in series to the socket |
@@ -65,6 +67,25 @@ Typical uses: popping balloons, water drops, breaking glass and other short even
 | 5 | Onboard LED (held low) |
 
 GPIO16 and 17 are taken by the PSRAM on the T-Energy, so they are not used. The encoder pins must stay below GPIO32, because the interrupt reads them straight from the GPIO register. All pin assignments are in [src/config.h](src/config.h).
+
+### Wiring
+
+Without a pcb for the front panel, wiring turns into spaghetti fast. I soldered the optocouplers directly on the jack connectors to save some spaghetti, but still. 
+
+| Thing | Notes |
+|---|---|
+| Power | All components that require power on the front panel are either INPUT_PULLUPs or get their power from the #v# out from the LilyGo. |
+| GND | Just tie everything together and connect to GND on LilyGo. Bad practice but it works. |
+| Left Pot | Left pot is on/off + 10k lineair pot. I desoldered the pot from the sound detection module and wired it to this pot on the front panel. On/off pins short the on/off switch already present on the LilyGo. |
+| KY-037 | I wired the wiper to an additional pin so that you can see sensitivity in percent on the display. Wiper to pin 34  |
+| EXT trigger | I've wired it so that it provides 3.3v on the ring for external sensors (ring: 3V3, tip: trigger, sleeve: GND) |
+| PC Sync | Use a 1k resistor in series from GPIO to tip (trigger) to prevent excess current, use 10k pullup resistor from 3V3 on LilyGo to tip for better pullup. You can probably get away without it but on long cable runs this works better. |
+
+### Case
+
+Case 3MF is in pictures/ directory
+
+![case](pictures/flashbang-case.png)
 
 ## Building and flashing
 
@@ -147,8 +168,10 @@ src/
 
 ## Safety
 
-Some flashes, especially older ones, put **hundreds of volts** on their trigger contacts. The optocouplers keep that voltage away from the ESP32. Check the trigger voltage of your flash, and use an optocoupler or SCR rated for it. The external trigger input takes 3.3 V logic only.
+Some flashes, especially older ones, put **hundreds of volts** on their trigger contacts. The optocouplers keep that voltage away from the ESP32. Check the trigger voltage of your flash, and **use an optocoupler or SCR rated for it !** The external trigger input takes 3.3 V logic only.
 
 ## License
 
 [MIT](LICENSE)
+
+![pic](pictures/flashbang-2.jpg)
